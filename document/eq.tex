@@ -1,0 +1,68 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+
+
+
+\usepackage{float}
+\usepackage{subfigure}
+\usepackage{framed}
+\usepackage{xcolor}
+
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks   = true, %Colours links instead of ugly boxes
+  urlcolor     = red, %Colour for external hyperlinks
+  linkcolor    = black, %Colour of internal links
+  citecolor   = blue %Colour of citations
+}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+
+\definecolor{shadecolor}{gray}{0.9}
+
+% Operators
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argminA}{arg\,min} % Jan Hlavacek
+
+% Environments theorems
+\newtheorem{questions}{Question}
+\newenvironment{question}
+   {\begin{shaded}\begin{questions}}
+   {\end{questions}\end{shaded}}
+
+\author{Ram\'on Mart\'inez}
+\title{Sequence disambiguation with synaptic traces in }
+
+% Paragraph parameters
+\setlength{\parskip}{1em}
+
+\begin{document}
+
+\begin{align}
+\tau_s \dfrac{ds_i}{dt} &= \beta_i + \sum_{j} w_{ij} o_j  - g_a a_i - s_i  + \sigma d\xi(t) + I_i(t) \label{eq:current} \\ o_i &=   \begin{cases}
+       1,&  s_i = \underset{hypercolumn}{\max}(\mathbf{s}),\\
+       0 ,& \text{otherwise}
+    \end{cases} \label{eq:non-linearity} \\
+\tau_a \dfrac{da_i}{dt} &= o_i - a_i \label{eq:adaptation} 
+\end{align}
+
+
+\begin{align}
+\tau_{z_{pre}} \dfrac{dz_i}{dt} &= o_i - z_i 
+& \tau_{z_{post}} \dfrac{d z_j}{dt} &= o_j - z_j \label{eq:z_traces} \\
+t \dfrac{dp_i}{dt} &= z_i - p_i  
+\qquad \quad t\dfrac{dp_{ij}}{dt} = z_i z_j - p_{ij}
+&t\dfrac{dp_j}{dt} &= z_j - p_j    \label{eq:p_traces} \\
+w_{ij} &= \log \left(\frac{p_{ij}}{p_i p_j} \right) & \beta_i &= \log(p_i) \label{eq:bcpnn} 
+\end{align}
+
+\bibliographystyle{apalike}
+\bibliography{references.bib}
+
+\end{document}

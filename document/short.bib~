@@ -1,0 +1,34 @@
+@article{lansner2009associative,
+  title={Associative memory models: from the cell-assembly theory to biophysically detailed cortex simulations},
+  author={Lansner},
+  journal={Trends Neurosci},
+  year={2009},
+}
+
+@article{levy1996sequence,
+  title={A sequence predicting CA3 is a flexible associator that learns and uses context to solve hippocampal-like tasks},
+  author={Levy},
+  journal={Hippocampus},
+  year={1996},
+}
+
+@article{verduzco2012model,
+  title={A model for complex sequence learning and reproduction in neural populations},
+  author={Verduzco-Flores et al},
+  journal={Journal of computational neuroscience},
+  year={2012},
+}
+
+@article{wang1990complex,
+  title={Complex temporal sequence learning based on short-term memory},
+  author={Wang et al},
+  journal={Proc. IEEE},
+  year={1990},
+}
+
+@article{tully2016spike,
+  title={Spike-based Bayesian-Hebbian learning of temporal sequences},
+  author={Tully et al},
+  journal={PLOS Comput. Biol.},
+  year={2016},
+}
