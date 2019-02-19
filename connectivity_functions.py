@@ -12,7 +12,7 @@ def get_w_pre_post(P, p_pre, p_post, epsilon=1e-20, diagonal_zero=True):
 
     outer = np.outer(p_post, p_pre)
     # w = np.log(p * P) - np.log(outer)
-    x = P / outer
+    # x = P / outer
     # w = np.log(x)
     # P_qual zero and outer is bigger than epsilon
     P_equal_zero = (P < epsilon) * (outer > epsilon)

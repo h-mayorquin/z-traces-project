@@ -300,7 +300,6 @@ class NetworkManager:
             self.nn.update_continuous(dt=self.dt, sigma=noise[index_t, :])
             # Update the learning variables
             if train_network:
-                self.nn.update_z_values(dt=self.dt)
                 self.nn.update_probabilities(dt=self.dt)
             # Update the weights
             if plasticity_on:
@@ -449,6 +448,13 @@ class NetworkManager:
             # Recall times
             self.T_recall_total = 0
             self.n_time_total = 0
+
+        if I_cue is None:
+            pass
+        elif isinstance(I_cue, int):
+            self.nn.z_pre[I_cue] = 1.0
+        else:
+            self.nn.z_pre[np.where(I_cue)[0]] = 1.0
 
         # Set initial conditions of the current to the clamping if available
         if stable_start:
