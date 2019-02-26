@@ -149,6 +149,183 @@ class Network:
         self.w = get_w_pre_post(self.P, self.p_pre, self.p_post, self.epsilon, diagonal_zero=False)
 
 
+class NetworkNMDA:
+    def __init__(self, hypercolumns, minicolumns, G=1.0, tau_s=0.010, tau_z_pre=0.050, tau_z_post=0.005,
+                 tau_a=0.250, g_a=1.0, g_I=10.0, g_AMPA=1.0, g_NMDA=1.0, sigma_out=0.0,
+                 epsilon=1e-60, g_beta=1.0, prng=np.random, strict_maximum=True, perfect=False, normalized_currents=True):
+
+        # Random number generator
+        self.prng = prng
+        self.sigma_out = sigma_out  # The variance that the system would have on the steady state if were to have it
+        self.sigma_in = sigma_out * np.sqrt(2 / tau_s)  # Ornstein-Uhlenbeck process
+        self.epsilon = epsilon
+
+        # Network parameters
+        self.hypercolumns = hypercolumns
+        self.minicolumns = minicolumns
+
+        self.n_units = self.hypercolumns * self.minicolumns
+
+        # Network variables
+        self.strict_maximum = strict_maximum
+        self.perfect = perfect
+        self.normalized_current = normalized_currents
+        if self.normalized_current:
+            self.normalized_constant = self.hypercolumns
+        else:
+            self.normalized_constant = 1.0
+
+        # Dynamic Parameters
+        self.tau_s = tau_s
+        self.tau_a = tau_a
+        self.r = self.tau_s / self.tau_a
+        self.g_beta = g_beta
+        self.g_AMPA = g_AMPA
+        self.g_NMDA = g_NMDA
+        self.g_a = g_a
+        self.g_I = g_I
+        self.tau_z_pre = tau_z_pre
+        self.tau_z_post = tau_z_post
+        self.tau_z_pre_ampa = 0.005
+        self.tau_z_post_ampa = 0.005
+        self.G = G
+
+        # State variables
+        self.o = np.full(shape=self.n_units, fill_value=0.0)
+        self.s = np.full(shape=self.n_units, fill_value=0.0)
+        self.a = np.full(shape=self.n_units, fill_value=0.0)
+        self.I = np.full(shape=self.n_units, fill_value=0.0)
+
+        # Current values
+        self.i = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_pre = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_post = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_co = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+        # Current values AMPA
+        self.i_ampa = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_ampa_pre = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_post_ampa = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_co_ampa = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+        # Keeping track of the probability / connectivity
+        self.t_p = 0.0
+        self.p_pre = np.full(shape=self.n_units, fill_value=0.0)
+        self.p_post = np.full(shape=self.n_units, fill_value=0.0)
+        self.P = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+        self.w = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+        self.p_pre_ampa = np.full(shape=self.n_units, fill_value=0.0)
+        self.p_post_ampa = np.full(shape=self.n_units, fill_value=0.0)
+        self.P_ampa = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+        self.w_ampa = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+        self.beta = np.full(shape=self.n_units, fill_value=0.0)
+
+    def parameters(self):
+        """
+        Get the parameters of the model
+
+        :return: a dictionary with the parameters
+        """
+        parameters = {'tau_s': self.tau_s, 'tau_z_post': self.tau_z_post, 'tau_z_pre': self.tau_z_pre,
+                      'tau_a': self.tau_a, 'g_a': self.g_a, 'g_I': self.g_I, 'epsilon': self.epsilon,
+                      'G': self.G, 'sigma_out': self.sigma_out, 'sigma_in': self.sigma_in,
+                      'perfect': self.perfect, 'strict_maximum': self.strict_maximum}
+
+        return parameters
+
+    def reset_values(self, keep_connectivity=True):
+        # State variables
+        self.o = np.full(shape=self.n_units, fill_value=0.0)
+        self.s = np.full(shape=self.n_units, fill_value=0.0)
+
+        self.a = np.full(shape=self.n_units, fill_value=0.0)
+        self.I = np.full(shape=self.n_units, fill_value=0.0)
+
+        # Current values
+        self.i = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_pre = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_post = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_co = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+        self.i_ampa = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_pre_ampa = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_post_ampa = np.full(shape=self.n_units, fill_value=0.0)
+        self.z_co_ampa = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+
+        if not keep_connectivity:
+            self.beta = np.full(shape=self.n_units, fill_value=0.0)
+            self.w = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+            self.w_ampa = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+            self.p_pre = np.full(shape=self.n_units, fill_vale=0.0)
+            self.p_post = np.full(shape=self.n_units, fill_value=0.0)
+            self.P = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+            self.p_pre_ampa = np.full(shape=self.n_units, fill_vale=0.0)
+            self.p_post_ampa = np.full(shape=self.n_units, fill_value=0.0)
+            self.P_ampa = np.full(shape=(self.n_units, self.n_units), fill_value=0.0)
+
+    def update_continuous(self, dt=1.0, sigma=None):
+        # Get the noise
+        if sigma is None:
+            noise = self.sigma_in * np.sqrt(dt) * self.prng.normal(0, 1.0, self.n_units)
+        else:
+            noise = sigma
+
+        # Calculate currents
+        self.i = self.w @ self.z_pre / self.normalized_constant
+        self.i_ampa = self.w @ self.z_pre_ampa / self.normalized_constant
+
+        if self.perfect:
+            self.s = self.i + self.i_ampa + self.g_beta * self.beta - self.g_a * self.a + self.g_I * self.I + noise
+        else:
+            self.s += (dt / self.tau_s) * (self.g_AMPA * self.i_ampa + self.g_NMDA * self.i # Current
+                                           + self.g_beta * self.beta  # Bias
+                                           + self.g_I * self.I  # Input current
+                                           - self.g_a * self.a  # Adaptation
+                                           - self.s)  # s follow all of the s above
+            self.s += noise
+        # Non-linearity
+        if self.strict_maximum:
+            self.o = strict_max(self.s, minicolumns=self.minicolumns)
+        else:
+            self.o = softmax(self.s, G=self.G, minicolumns=self.minicolumns)
+
+        # Update the z-traces
+        self.z_pre += (dt / self.tau_z_pre) * (self.o - self.z_pre)
+        self.z_post += (dt / self.tau_z_post) * (self.o - self.z_post)
+        self.z_co = np.outer(self.z_post, self.z_pre)
+
+        self.z_pre_ampa += (dt / self.tau_z_pre_ampa) * (self.o - self.z_pre_ampa)
+        self.z_post_ampa += (dt / self.tau_z_post_ampa) * (self.o - self.z_post_ampa)
+        self.z_co_ampa = np.outer(self.z_post_ampa, self.z_pre_ampa)
+
+        # Update the adaptation
+        self.a += (dt / self.tau_a) * (self.o - self.a)
+
+    def update_probabilities(self, dt):
+        if self.t_p > 0.0:
+            time_factor = dt / self.t_p
+            self.p_pre += time_factor * (self.z_pre - self.p_pre)
+            self.p_post += time_factor * (self.z_post - self.p_post)
+            self.P += time_factor * (self.z_co - self.P)
+
+            self.p_pre_ampa += time_factor * (self.z_pre_ampa - self.p_pre_ampa)
+            self.p_post_ampa += time_factor * (self.z_post_ampa - self.p_post_ampa)
+            self.P_ampa += time_factor * (self.z_co_ampa - self.P_ampa)
+
+        self.t_p += dt
+
+    def update_weights(self):
+        # Update the connectivity
+        self.beta = get_beta(self.p_post, self.epsilon)
+        self.w = get_w_pre_post(self.P, self.p_pre, self.p_post, self.epsilon, diagonal_zero=False)
+        self.w_ampa = get_w_pre_post(self.P_ampa, self.p_pre_ampa, self.p_post_ampa, self.epsilon, diagonal_zero=False)
+
+
 class NetworkManager:
     """
     This class will run the Network. Everything from running, saving and calculating quantities should be
@@ -373,17 +550,30 @@ class NetworkManager:
         if values_to_save_epoch:
             return epoch_history
 
-    def run_network_protocol_offline(self, protocol):
+    def run_network_protocol_offline(self, protocol, NMDA=True):
         # Build time input
         timed_input = TimedInput(protocol, self.dt)
         timed_input.build_timed_input()
         timed_input.build_filtered_input_pre(tau_z=self.nn.tau_z_pre)
         timed_input.build_filtered_input_post(tau_z=self.nn.tau_z_post)
+
         # Calculate probabilities
         self.nn.p_pre, self.nn.p_post, self.nn.P = timed_input.calculate_probabilities_from_time_signal()
         # Store the connectivity values
         self.nn.beta = get_beta(self.nn.p_post, self.nn.epsilon)
         self.nn.w = get_w_pre_post(self.nn.P, self.nn.p_pre, self.nn.p_post, self.nn.epsilon, diagonal_zero=False)
+
+        if NMDA:
+            timed_input_AMPA = TimedInput(protocol, self.dt)
+            timed_input_AMPA.build_timed_input()
+            timed_input_AMPA.build_filtered_input_pre(tau_z=self.nn.tau_z_pre_ampa)
+            timed_input_AMPA.build_filtered_input_post(tau_z=self.nn.tau_z_post_ampa)
+            # Calculate probabilities
+            aux = timed_input_AMPA.calculate_probabilities_from_time_signal()
+            self.nn.p_pre_AMPA, self.nn.p_post_AMPA, self.nn.P_AMPA = aux
+            # Store the connectivity values
+            self.nn.w_ampa = get_w_pre_post(self.nn.P_AMPA, self.nn.p_pre_AMPA, self.nn.p_post_AMPA,
+                                            self.nn.epsilon, diagonal_zero=False)
 
         # Update the patterns
         self.update_patterns(protocol.network_representation)
@@ -453,8 +643,10 @@ class NetworkManager:
             pass
         elif isinstance(I_cue, int):
             self.nn.z_pre[I_cue] = 1.0
+            self.nn.z_pre_ampa[I_cue] = 1.0
         else:
             self.nn.z_pre[np.where(I_cue)[0]] = 1.0
+            self.nn.z_pre_ampa[np.where(I_cue)][0] = 1.0
 
         # Set initial conditions of the current to the clamping if available
         if stable_start:
@@ -483,7 +675,7 @@ class NetworkManager:
         self.n_time_total += self.history['o'].shape[0]
         self.time = np.linspace(0, self.T_recall_total, num=self.n_time_total)
 
-    def set_persistent_time_with_adaptation_gain(self, T_persistence, from_state=2, to_state=3):
+    def set_persistent_time_with_adaptation_gain(self, T_persistence, from_state=2, to_state=3, NMDA=False):
         """
         This formula adjusts the adpatation gain g_a so the network with the current weights lasts for T_persistence
         when passing from `from_state' to `to_state'
@@ -494,6 +686,9 @@ class NetworkManager:
         """
 
         delta_w = self.nn.w[from_state, from_state] - self.nn.w[to_state, from_state]
+        if NMDA:
+            delta_w += self.nn.w_ampa[from_state, from_state] - self.nn.w_ampa[to_state, from_state]
+
         delta_beta = self.nn.beta[from_state] - self.nn.beta[to_state]
         aux = 1 - np.exp(-T_persistence / self.nn.tau_a) / (1 - self.nn.r)
         g_a = (delta_w + delta_beta) / aux

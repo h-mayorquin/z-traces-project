@@ -53,7 +53,7 @@ def plot_sequences(sequences, minicolumns):
     sns.set()
 
 
-def plot_weight_matrix(manager, one_hypercolum=True, ax=None, vmin=None, title=True):
+def plot_weight_matrix(manager, one_hypercolum=True, ax=None, vmin=None, title=True, transpose=False):
     with sns.axes_style("whitegrid", {'axes.grid': False}):
 
         w = manager.nn.w
@@ -69,8 +69,11 @@ def plot_weight_matrix(manager, one_hypercolum=True, ax=None, vmin=None, title=T
             # sns.set_style("whitegrid", {'axes.grid': False})
             fig = plt.figure()
             ax = fig.add_subplot(111)
-
-        im = ax.imshow(w, cmap=cmap, interpolation='nearest', norm=norm, vmin=vmin)
+        if transpose:
+            matrix_to_plot = w.T
+        else:
+            matrix_to_plot = w
+        im = ax.imshow(matrix_to_plot, cmap=cmap, interpolation='None', norm=norm, vmin=vmin)
 
         if title:
             ax.set_title('w connectivity')

@@ -84,7 +84,7 @@
 \typeout{Setup}
 
 % Choose a smaller value for larger fonts
-\newcommand{\baposter@fontscale}{0.292}
+\newcommand{\baposter@fontscale}{0.31}
 % Landscape versus portrait
 \newcommand{\baposter@format}{}
 
@@ -103,7 +103,7 @@
 \ifthenelse{\equal{\baposter@format}{landscape}}{
   \setlength{\baposter@basepaperwidth} {118.82cm}
   \setlength{\baposter@basepaperheight}{83.96cm}
-  \setlength{\baposter@basemargin}{1.5cm}
+  \setlength{\baposter@basemargin}{5.5cm}
 }{
   \setlength{\baposter@basepaperwidth} {83.96cm}
   \setlength{\baposter@basepaperheight}{118.82cm}
