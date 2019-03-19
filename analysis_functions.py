@@ -53,13 +53,13 @@ def calculate_persistence_time(tau_a, w_diff, beta_diff, g_a, tau_s, perfect=Fal
     return T
 
 
-def calculate_recall_quantities(manager, nr, T_recall, T_cue, remove=0.009, reset=True, empty_history=True):
+def calculate_recall_quantities(manager, nr, T_recall, T_cue, remove=0.009, reset=True, empty_history=True, NMDA=False):
     n_seq = nr.shape[0]
     I_cue = nr[0]
 
     # Do the recall
     manager.run_network_recall(T_recall=T_recall, I_cue=I_cue, T_cue=T_cue,
-                               reset=reset, empty_history=empty_history)
+                               reset=reset, empty_history=empty_history, NMDA=NMDA)
 
     distances = calculate_angle_from_history(manager)
     winning = calculate_winning_pattern_from_distances(distances)

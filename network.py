@@ -550,7 +550,7 @@ class NetworkManager:
         if values_to_save_epoch:
             return epoch_history
 
-    def run_network_protocol_offline(self, protocol, NMDA=True):
+    def run_network_protocol_offline(self, protocol, NMDA=False):
         # Build time input
         timed_input = TimedInput(protocol, self.dt)
         timed_input.build_timed_input()
@@ -611,7 +611,7 @@ class NetworkManager:
         return w
 
     def run_network_recall(self, T_recall=10.0, T_cue=0.0, I_cue=None, reset=True,
-                           empty_history=True, plasticity_on=False, stable_start=True):
+                           empty_history=True, plasticity_on=False, stable_start=True, NMDA=False):
         """
         Run network free recall
         :param T_recall: The total time of recalling
@@ -643,10 +643,12 @@ class NetworkManager:
             pass
         elif isinstance(I_cue, int):
             self.nn.z_pre[I_cue] = 1.0
-            self.nn.z_pre_ampa[I_cue] = 1.0
+            if NMDA:
+                self.nn.z_pre_ampa[I_cue] = 1.0
         else:
             self.nn.z_pre[np.where(I_cue)[0]] = 1.0
-            self.nn.z_pre_ampa[np.where(I_cue)][0] = 1.0
+            if NMDA:
+                self.nn.z_pre_ampa[np.where(I_cue)][0] = 1.0
 
         # Set initial conditions of the current to the clamping if available
         if stable_start:
